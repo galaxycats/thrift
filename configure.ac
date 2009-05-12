@@ -17,7 +17,7 @@
 # under the License.
 #
 
-AC_PREREQ(2.59)
+AC_PREREQ(2.60)
 
 AC_INIT([thrift], [20080411])
 
