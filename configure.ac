@@ -52,10 +52,14 @@ AC_PROG_MKDIR_P
 AC_LANG([C++])
 AX_BOOST_BASE([1.33.1])
 
+have_cpp=yes
+
 AX_LIB_EVENT([1.0])
+have_libevent=$success
 AM_CONDITIONAL([AMX_HAVE_LIBEVENT], [test "$success" = "yes"])
 
 AX_LIB_ZLIB([1.2.3])
+have_zlib=$success
 AM_CONDITIONAL([AMX_HAVE_ZLIB], [test "$success" = "yes"])
 
 AX_THRIFT_LIB(csharp, [C#], yes)
@@ -67,6 +71,7 @@ AM_CONDITIONAL(WITH_MONO, [test "$have_mono" = "yes"])
 AM_CONDITIONAL(NET_2_0, [test "$net_3_5" = "no"])
 
 AX_THRIFT_LIB(java, [Java], yes)
+have_java=no
 if test "$with_java" = "yes";  then
   AX_JAVAC_AND_JAVA
   AC_PATH_PROG([ANT], [ant])
@@ -79,35 +84,53 @@ if test "$with_java" = "yes";  then
   fi
   AC_SUBST(CLASSPATH)
   AC_SUBST(ANT_FLAGS)
+  if test "x$JAVAC" != "x" && test "x$JAVAC" != "x" && test "x$ANT" != "x" ; then
+    have_java="yes"
+  fi
 fi
-AM_CONDITIONAL([WITH_JAVA],
-               [test -n "$ANT" -a -n "$JAVA" -a -n "$JAVAC"])
+AM_CONDITIONAL([WITH_JAVA], [test "$have_java" = "yes"])
 
 AX_THRIFT_LIB(erlang, [Erlang], yes)
+have_erlang=no
 if test "$with_erlang" = "yes";  then
   AC_PATH_PROG([ERLC], [erlc])
+  if test "x$ERLC" != "x" ; then
+    have_erlang="yes"
+  fi
 fi
-AM_CONDITIONAL(WITH_ERLANG, [test -n "$ERLC"])
+AM_CONDITIONAL(WITH_ERLANG, [test "$have_erlang" = "yes"])
 
 AX_THRIFT_LIB(py, [Python], yes)
+have_python=no
 if test "$with_py" = "yes";  then
   AM_PATH_PYTHON(2.4,, :)
+  if test "x$PYTHON" != "x" && test "x$PYTHON" != "x:" ; then
+    have_python="yes"
+  fi
 fi
-AM_CONDITIONAL(WITH_PYTHON, [test -n "$PYTHON" -a "$PYTHON" != ":"])
+AM_CONDITIONAL(WITH_PYTHON, [test "$have_python" = "yes"])
 
 AX_THRIFT_LIB(perl, [Perl], yes)
+have_perl=no
 if test "$with_perl" = "yes"; then
   AC_PATH_PROG([PERL], [perl])
+  if test "x$PERL" != "x" ; then
+    have_perl="yes"
+  fi
 fi
-AM_CONDITIONAL(WITH_PERL, [test -n "$PERL"])
+AM_CONDITIONAL(WITH_PERL, [test "$have_perl" = "yes"])
 
 AX_THRIFT_LIB(ruby, [Ruby], yes)
+have_ruby=no
 if test "$with_ruby" = "yes"; then
   AC_PATH_PROG([RUBY], [ruby])
   AC_PATH_PROG([RSPEC], [spec])
+  if test "x$RUBY" != "x" ; then
+    have_ruby="yes"
+  fi
 fi
-AM_CONDITIONAL(WITH_RUBY, [test -n "$RUBY"])
-AM_CONDITIONAL(HAVE_RSPEC, [test -n "$RSPEC"])
+AM_CONDITIONAL(WITH_RUBY, [test "$have_ruby" = "yes"])
+AM_CONDITIONAL(HAVE_RSPEC, [test "x$RSPEC" != "x"])
 
 
 AC_C_CONST
@@ -234,3 +257,52 @@ AC_CONFIG_FILES([
 ])
 
 AC_OUTPUT
+
+
+echo
+echo "$PACKAGE $VERSION"
+echo
+echo "Building code generators ..... :$thrift_generators"
+echo
+echo "Building Java Library ........ : $have_java"
+echo "Building C# Library .......... : $have_mono"
+echo "Building Python Library ...... : $have_python"
+echo "Building Ruby Library ........ : $have_ruby"
+echo "Building Perl Library ........ : $have_perl"
+echo "Building Erlang Library ...... : $have_erlang"
+if test "$have_cpp" = "yes" ; then
+  echo
+  echo "Building TZlibTransport ...... : $have_zlib"
+  echo "Building TNonblockingServer .. : $have_libevent"
+fi
+if test "$have_java" = "yes" ; then
+  echo
+  echo "Using javac .................. : $JAVAC"
+  echo "Using java ................... : $JAVA"
+  echo "Using ant .................... : $ANT"
+fi
+if test "$have_mono" = "yes" ; then
+  echo
+  echo "Using .NET 3.5 ............... : $net_3_5"
+fi
+if test "$have_python" = "yes" ; then
+  echo
+  echo "Using Python ................. : $PYTHON"
+fi
+if test "$have_ruby" = "yes" ; then
+  echo
+  echo "Using Ruby ................... : $RUBY"
+  echo "Using rspec .................. : $RSPEC"
+fi
+if test "$have_perl" = "yes" ; then
+  echo
+  echo "Using Perl ................... : $PERL"
+fi
+if test "$have_erlang" = "yes" ; then
+  echo
+  echo "Using erlc ................... : $ERLC"
+fi
+echo
+echo "If something is missing that you think should be present,"
+echo "please skim the output of configure to find the missing"
+echo "component.  Details are present in config.log."
