@@ -19,6 +19,8 @@
 
 EXTRA_DIST = build.xml ivy.xml src test
 
+export CLASSPATH
+
 all-local:
 	$(ANT) $(ANT_FLAGS)
 
