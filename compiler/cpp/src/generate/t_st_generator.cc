@@ -23,7 +23,6 @@
 #include <vector>
 
 #include <stdlib.h>
-#include <boost/tokenizer.hpp>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sstream>
