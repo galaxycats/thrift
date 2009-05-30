@@ -162,6 +162,8 @@ class t_rb_generator : public t_oop_generator {
   std::string function_signature(t_function* tfunction, std::string prefix="");
   std::string argument_list(t_struct* tstruct);
   std::string type_to_enum(t_type* ttype);
+  std::string render_require();
+  std::string get_out_dir_with_namespace();
 
 
 
@@ -181,6 +183,11 @@ class t_rb_generator : public t_oop_generator {
   void end_namespace(std::ofstream&, std::vector<std::string>);
 
  private:
+   
+  /**
+   * True iff we should generate Rails-friendly file layout.
+   */
+  bool gen_rails_;
 
   /**
    * File streams
@@ -203,11 +210,20 @@ void t_rb_generator::init_generator() {
   // Make output directory
   MKDIR(get_out_dir().c_str());
 
+  string subdir = get_out_dir();
+  
+  vector<std::string> modules = ruby_modules(program_);
+  
+  for (vector<std::string>::iterator m_iter = modules.begin(); m_iter != modules.end(); ++m_iter) {
+    subdir = subdir + "/" + underscore(*m_iter) + "/";
+    MKDIR(subdir.c_str());
+  }
+
   // Make output file
-  string f_types_name = get_out_dir()+underscore(program_name_)+"_types.rb";
+  string f_types_name = get_out_dir_with_namespace()+underscore(program_name_)+"_types.rb";
   f_types_.open(f_types_name.c_str());
 
-  string f_consts_name = get_out_dir()+underscore(program_name_)+"_constants.rb";
+  string f_consts_name = get_out_dir_with_namespace()+underscore(program_name_)+"_constants.rb";
   f_consts_.open(f_consts_name.c_str());
 
   // Print header
@@ -218,7 +234,7 @@ void t_rb_generator::init_generator() {
 
   f_consts_ <<
     rb_autogen_comment() << endl <<
-    "require '" << underscore(program_name_) << "_types'" << endl <<
+    render_require() << " File.dirname(__FILE__) + '/" << underscore(program_name_) << "_types'" << endl <<
     endl;
     begin_namespace(f_consts_, ruby_modules(program_));
 
@@ -231,12 +247,35 @@ string t_rb_generator::render_includes() {
   const vector<t_program*>& includes = program_->get_includes();
   string result = "";
   for (size_t i = 0; i < includes.size(); ++i) {
-    result += "require '" + underscore(includes[i]->get_name()) + "_types'\n";
+    result += render_require() + " '" + underscore(includes[i]->get_name()) + "_types'\n";
   }
   if (includes.size() > 0) {
     result += "\n";
   }
   return result;
+}
+
+/**
+ * When generating for the use within a Rails application require_dependency
+ * is needed in favor of a simple require
+ */
+string t_rb_generator::render_require() {
+  return gen_rails_ ? std::string("require_dependency") : std::string("require");
+}
+
+/**
+ * If you have namespaced your services and type definitions the generated
+ * files should be located in an appropriate folder structure
+ */
+string t_rb_generator::get_out_dir_with_namespace() {
+  string namespaced_dir = std::string(get_out_dir());
+  vector<std::string> modules = ruby_modules(program_);
+  
+  for (vector<std::string>::iterator m_iter = modules.begin(); m_iter != modules.end(); ++m_iter) {
+    namespaced_dir += underscore(*m_iter) + "/";
+  }
+  
+  return namespaced_dir;
 }
 
 /**
@@ -622,20 +661,24 @@ void t_rb_generator::end_namespace(std::ofstream& out, vector<std::string> modul
  * @param tservice The service definition
  */
 void t_rb_generator::generate_service(t_service* tservice) {
-  string f_service_name = get_out_dir()+underscore(service_name_)+".rb";
+  string f_service_name = get_out_dir_with_namespace()+underscore(service_name_)+".rb";
   f_service_.open(f_service_name.c_str());
 
   f_service_ <<
-    rb_autogen_comment() << endl <<
-    "require 'thrift'" << endl;
+    rb_autogen_comment() << endl;
+
+  if (!gen_rails_) {
+    f_service_ <<
+      "require 'thrift'" << endl;
+  }
 
   if (tservice->get_extends() != NULL) {
     f_service_ <<
-      "require '" << underscore(tservice->get_extends()->get_name()) << "'" << endl;
+      render_require() << " '" << underscore(tservice->get_extends()->get_name()) << "'" << endl;
   }
 
   f_service_ <<
-    "require '" << underscore(program_name_) << "_types'" << endl <<
+    render_require() << " File.dirname(__FILE__) + '/" << underscore(program_name_) << "_types'" << endl <<
     endl;
 
   begin_namespace(f_service_, ruby_modules(tservice->get_program()));
@@ -1094,4 +1137,6 @@ void t_rb_generator::generate_rb_struct_required_validator(std::ofstream& out,
   
 }
 
-THRIFT_REGISTER_GENERATOR(rb, "Ruby", "");
+THRIFT_REGISTER_GENERATOR(rb, "Ruby",
+"    rails:         Generate Rails-friendly RPC services.\n"
+);
