@@ -46,6 +46,11 @@ class t_rb_generator : public t_oop_generator {
       const std::string& option_string)
     : t_oop_generator(program)
   {
+    std::map<std::string, std::string>::const_iterator iter;
+
+    iter = parsed_options.find("rails");
+    gen_rails_ = (iter != parsed_options.end());
+    
     out_dir_base_ = "gen-rb";
   }
 
@@ -245,9 +250,22 @@ void t_rb_generator::init_generator() {
  */
 string t_rb_generator::render_includes() {
   const vector<t_program*>& includes = program_->get_includes();
-  string result = "";
+  string result = std::string("");
   for (size_t i = 0; i < includes.size(); ++i) {
-    result += render_require() + " '" + underscore(includes[i]->get_name()) + "_types'\n";
+    result += render_require() + " File.dirname(__FILE__) + '/";
+    
+    vector<std::string> include_modules = ruby_modules(includes[i]);
+    vector<std::string> modules = ruby_modules(program_);
+
+    for (size_t j = 0; j < modules.size(); ++j) {
+      result += "../";
+    }
+
+    for (vector<std::string>::iterator m_iter = include_modules.begin(); m_iter != include_modules.end(); ++m_iter) {
+      result += underscore(*m_iter) + "/";
+    }
+    
+    result += underscore(includes[i]->get_name()) + "_types'\n";
   }
   if (includes.size() > 0) {
     result += "\n";
